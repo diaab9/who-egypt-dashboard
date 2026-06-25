@@ -1,0 +1,1096 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>WHO Egypt — Emergency Operations Dashboard</title>
+<style>
+:root {
+  --who-blue:#0072B8; --who-dark:#005591; --who-navy:#003865; --who-deep:#001A33;
+  --bg:#F4F6F9; --canvas:#FFFFFF; --card2:#F0F4F8; --soft:#F8FAFC;
+  --bord:#E0E8F0; --bord2:#C8D6E5;
+  --th:#1A2940; --tb:#3D5470; --tm:#7A92AB; --tl:#B0BEC5;
+  --resp:#E74C3C; --resp-d:#C0392B; --resp-l:#FFE5E0;
+  --prep:#007A76; --prep-d:#00665E; --prep-l:#D5F0EE;
+  --green:#27AE60; --amber:#E67E22; --red:#E74C3C;
+  --blue:#2980B9; --teal:#16A085; --purple:#8E44AD;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+html, body { height:100%; }
+body { font-family:'Segoe UI',-apple-system,sans-serif; background:#1E2A38; color:var(--th); font-size:13px; overflow:hidden; }
+
+.svc { height:44px; background:#000; display:flex; align-items:center; padding:0 18px; gap:16px; flex-shrink:0; }
+.svc-pbi { display:flex; align-items:center; gap:8px; color:#F2C811; font-size:13px; font-weight:600; }
+.svc-name { color:rgba(255,255,255,.78); font-size:13px; font-weight:500; }
+.svc-name span { color:rgba(255,255,255,.45); font-weight:400; margin-left:6px; }
+.svc-nav { margin-left:auto; display:flex; gap:6px; }
+.svc-btn { color:rgba(255,255,255,.65); font-size:12px; padding:5px 11px; border:none; background:transparent; border-radius:3px; cursor:pointer; }
+.svc-btn:hover { color:#fff; background:rgba(255,255,255,.1); }
+
+.layout { display:flex; height:calc(100vh - 44px); }
+
+.side { width:236px; background:#1F2D3D; border-right:1px solid rgba(255,255,255,.08); display:flex; flex-direction:column; flex-shrink:0; }
+.side-head { padding:18px 14px 14px; background:linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,.02)); border-bottom:1px solid rgba(255,255,255,.08); }
+.side-logo-row { display:flex; align-items:center; justify-content:center; gap:10px; }
+.side-logo-txt { flex:1; }
+.side-org { font-size:9.5px; font-weight:700; letter-spacing:.8px; color:#71C0E8; text-transform:uppercase; }
+.side-cty { font-size:11px; font-weight:600; color:rgba(255,255,255,.92); margin-top:1px; }
+.side-cty span { font-size:10px; color:rgba(255,255,255,.55); font-weight:400; }
+.side-list { flex:1; overflow-y:auto; padding:8px 0 14px; }
+.side-grp { padding:14px 14px 6px; display:flex; align-items:center; gap:8px; }
+.side-grp-bar { width:3px; height:14px; border-radius:2px; }
+.side-grp-lbl { font-size:9px; font-weight:700; letter-spacing:1.4px; text-transform:uppercase; color:rgba(255,255,255,.42); }
+.side-item { display:flex; align-items:center; gap:10px; padding:9px 14px 9px 22px; cursor:pointer; border-left:3px solid transparent; font-size:12px; color:rgba(255,255,255,.6); transition:all .14s; }
+.side-item:hover { background:rgba(255,255,255,.05); color:rgba(255,255,255,.92); }
+.side-item.active { background:rgba(0,114,184,.18); color:#fff; font-weight:500; border-left-color:#71C0E8; }
+.side-item.home-item { padding-left:14px; }
+.dot { width:7px; height:7px; border-radius:50%; flex-shrink:0; }
+.side-meta { font-size:9px; color:rgba(255,255,255,.28); margin-left:auto; font-style:italic; }
+.side-foot { padding:12px 14px; border-top:1px solid rgba(255,255,255,.06); background:rgba(0,0,0,.18); }
+.live { display:flex; align-items:center; gap:6px; font-size:10px; color:rgba(255,255,255,.55); }
+.live-dot { width:6px; height:6px; border-radius:50%; background:#2ECC71; animation:pulse 2s infinite; flex-shrink:0; }
+@keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:.3; } }
+.side-foot-meta { font-size:9px; color:rgba(255,255,255,.28); margin-top:4px; font-style:italic; }
+
+.canvas-wrap { flex:1; overflow-y:auto; background:#2C3E50; padding:18px; display:flex; flex-direction:column; align-items:center; }
+.canvas { width:1280px; min-height:720px; background:var(--bg); border-radius:3px; box-shadow:0 4px 28px rgba(0,0,0,.4); display:none; flex-direction:column; overflow:hidden; margin-bottom:16px; }
+.canvas.active { display:flex; }
+.home { display:none; width:1280px; background:#fff; border-radius:3px; box-shadow:0 4px 28px rgba(0,0,0,.4); overflow:hidden; flex-direction:column; margin-bottom:16px; }
+.home.active { display:flex; }
+
+.hero { position:relative; padding:20px 40px 16px; background:linear-gradient(135deg,#001A33 0%,#003865 55%,#005591 100%); overflow:hidden; }
+.hero::before { content:''; position:absolute; top:-40px; right:-30px; width:300px; height:300px; background:radial-gradient(circle,rgba(113,192,232,.15) 0%,transparent 70%); border-radius:50%; pointer-events:none; }
+.hero-inner { position:relative; z-index:1; display:flex; align-items:flex-start; gap:28px; }
+.hero-text { flex:1; }
+.hero-eye { font-size:10px; font-weight:700; letter-spacing:2.6px; text-transform:uppercase; color:#71C0E8; margin-bottom:10px; }
+.hero-title { font-size:26px; font-weight:300; color:#fff; line-height:1.08; margin-bottom:5px; letter-spacing:-.4px; }
+.hero-title b { font-weight:600; color:#71C0E8; }
+.hero-sub { font-size:12px; color:rgba(255,255,255,.72); max-width:680px; line-height:1.6; }
+
+.topnav { background:#1F2D3D; border-bottom:1px solid rgba(255,255,255,.1); padding:0 18px; display:flex; align-items:stretch; gap:2px; flex-shrink:0; overflow-x:auto; }
+.topnav-home { display:flex; align-items:center; gap:6px; padding:0 14px; color:rgba(255,255,255,.7); font-size:11px; font-weight:600; cursor:pointer; border-bottom:3px solid transparent; white-space:nowrap; }
+.topnav-home:hover { color:#fff; background:rgba(255,255,255,.06); }
+.topnav-sep { width:1px; background:rgba(255,255,255,.12); margin:8px 6px; }
+.tn-grp-lbl { display:flex; align-items:center; padding:0 8px; font-size:8.5px; font-weight:700; letter-spacing:.8px; text-transform:uppercase; color:rgba(255,255,255,.38); white-space:nowrap; }
+.topnav-item { display:flex; align-items:center; gap:6px; padding:11px 13px; color:rgba(255,255,255,.62); font-size:11px; font-weight:500; cursor:pointer; border-bottom:3px solid transparent; white-space:nowrap; transition:all .14s; }
+.topnav-item:hover { color:#fff; background:rgba(255,255,255,.05); }
+.topnav-item.active { color:#fff; background:rgba(0,114,184,.18); border-bottom-color:#71C0E8; font-weight:600; }
+.topnav-item .dot { width:6px; height:6px; border-radius:50%; flex-shrink:0; }
+
+.ph { background:linear-gradient(135deg,var(--ph-bg-a,var(--who-navy)) 0%,var(--ph-bg-b,var(--who-dark)) 100%); padding:16px 22px; display:flex; align-items:center; gap:16px; flex-shrink:0; }
+.ph.resp-bg { --ph-bg-a:#003865; --ph-bg-b:#7E1F0F; }
+.ph.prep-bg { --ph-bg-a:#003865; --ph-bg-b:#005552; }
+.ph-meta-left { flex:1; }
+.ph-section { font-size:10px; font-weight:700; letter-spacing:1.6px; text-transform:uppercase; color:rgba(255,255,255,.55); }
+.ph-title { font-size:18px; font-weight:600; color:#fff; margin-top:2px; }
+.ph-badge { padding:4px 10px; border-radius:3px; font-size:9.5px; font-weight:700; letter-spacing:.8px; text-transform:uppercase; }
+.bg-emerg { background:rgba(231,76,60,.28); color:#FFB0A6; border:1px solid rgba(231,76,60,.4); }
+.bg-prep { background:rgba(0,181,172,.22); color:#7EE0DA; border:1px solid rgba(0,181,172,.4); }
+.bg-fin { background:rgba(46,204,113,.22); color:#7CE3A9; border:1px solid rgba(46,204,113,.4); }
+.ph-refresh { text-align:right; font-size:10px; color:rgba(255,255,255,.5); line-height:1.5; }
+.ph-refresh em { color:rgba(255,255,255,.4); font-style:italic; }
+
+.fbar { background:#fff; border-bottom:1px solid var(--bord); padding:10px 22px; display:flex; align-items:center; gap:14px; flex-shrink:0; flex-wrap:wrap; }
+.fb-grp { display:flex; align-items:center; gap:6px; }
+.fb-lbl { font-size:9.5px; font-weight:700; letter-spacing:1.1px; text-transform:uppercase; color:var(--tm); }
+.fb-chip-group { display:inline-flex; background:var(--card2); border:1px solid var(--bord); border-radius:4px; padding:2px; }
+.fb-chip { padding:5px 12px; font-size:11px; font-weight:500; color:var(--tb); cursor:pointer; border-radius:3px; display:flex; align-items:center; gap:5px; }
+.fb-chip:hover { background:#fff; color:var(--th); }
+.fb-chip.active { background:var(--who-blue); color:#fff; box-shadow:0 1px 2px rgba(0,114,184,.3); }
+.fb-chip .dot { width:6px; height:6px; }
+.slc { display:flex; align-items:center; gap:6px; background:var(--card2); border:1px solid var(--bord); border-radius:3px; padding:5px 11px; font-size:11px; color:var(--tb); cursor:pointer; }
+.slc-lbl { color:var(--tm); font-size:9.5px; margin-right:2px; }
+.slc-val { color:var(--th); font-weight:500; }
+.slc-arrow { font-size:8px; color:var(--tm); margin-left:3px; }
+.fb-tag { font-size:9.5px; color:var(--tm); font-style:italic; margin-left:auto; }
+.fb-tag::before { content:'✦ '; color:var(--who-blue); }
+
+.partners-strip { background:linear-gradient(180deg,#fff,var(--soft)); border-bottom:1px solid var(--bord); padding:8px 22px; display:flex; align-items:center; gap:14px; flex-shrink:0; }
+.ps-lbl { font-size:9px; font-weight:700; letter-spacing:1.1px; text-transform:uppercase; color:var(--tm); border-right:1px solid var(--bord); padding-right:12px; white-space:nowrap; }
+.ps-row { display:flex; align-items:center; gap:18px; flex:1; flex-wrap:wrap; }
+.ps-tag { font-size:9px; color:var(--tm); font-style:italic; }
+
+.body { flex:1; padding:14px 18px; overflow:hidden; }
+.row { display:grid; gap:10px; margin-bottom:10px; }
+.r-2 { grid-template-columns:1fr 1fr; }
+.r-3 { grid-template-columns:repeat(3,1fr); }
+.r-4 { grid-template-columns:repeat(4,1fr); }
+.r-5 { grid-template-columns:repeat(5,1fr); }
+.r-72 { grid-template-columns:7fr 5fr; }
+.r-65 { grid-template-columns:6fr 4fr; }
+
+.k { background:#fff; border:1px solid var(--bord); border-radius:4px; padding:13px 14px; position:relative; overflow:hidden; }
+.k::before { content:''; position:absolute; top:0; left:0; right:0; height:3px; background:var(--kc,var(--who-blue)); }
+.k.red { --kc:var(--red); } .k.amber { --kc:var(--amber); } .k.green { --kc:var(--green); }
+.k.blue { --kc:var(--blue); } .k.teal { --kc:var(--teal); } .k.purple { --kc:var(--purple); }
+.k-lbl { font-size:9.5px; font-weight:700; text-transform:uppercase; letter-spacing:.7px; color:var(--tm); margin-bottom:6px; }
+.k-val { font-size:25px; font-weight:300; color:var(--th); line-height:1.05; margin-bottom:4px; letter-spacing:-.3px; }
+.k-val.red { color:var(--red); } .k-val.green { color:var(--green); } .k-val.amber { color:var(--amber); }
+.k-val.blue { color:var(--who-blue); } .k-val.teal { color:var(--teal); } .k-val.purple { color:var(--purple); }
+.k-sub { font-size:9.5px; color:var(--tm); line-height:1.4; }
+.k-loading { color:var(--tl); font-style:italic; }
+
+.v { background:#fff; border:1px solid var(--bord); border-radius:4px; position:relative; overflow:hidden; }
+.v-hdr { padding:9px 12px 7px; border-bottom:1px solid var(--bord); display:flex; align-items:flex-start; justify-content:space-between; gap:8px; }
+.v-title-wrap { flex:1; min-width:0; }
+.v-title { font-size:11.5px; font-weight:600; color:var(--th); display:flex; align-items:center; gap:6px; }
+.v-sub { font-size:9.5px; color:var(--tm); margin-top:2px; line-height:1.4; }
+.v-tag { font-size:8.5px; color:var(--who-blue); font-weight:600; padding:2px 6px; background:rgba(0,114,184,.07); border-radius:2px; font-style:italic; white-space:nowrap; flex-shrink:0; }
+.v-body { padding:12px; }
+
+.bars { display:flex; flex-direction:column; gap:7px; }
+.bar { display:flex; align-items:center; gap:8px; }
+.bar-lbl { font-size:10.5px; color:var(--tb); width:130px; text-align:right; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; flex-shrink:0; }
+.bar-lbl.left { text-align:left; }
+.bar-trk { flex:1; background:rgba(0,56,101,.06); height:10px; border-radius:2px; overflow:hidden; }
+.bar-fill { height:100%; border-radius:2px; }
+.bar-val { font-size:10.5px; color:var(--th); width:60px; text-align:right; font-weight:600; flex-shrink:0; }
+
+.donut-wrap { display:flex; align-items:center; gap:14px; }
+.donut-legend { flex:1; display:flex; flex-direction:column; gap:6px; }
+.lg-row { display:flex; align-items:center; gap:7px; font-size:11px; color:var(--tb); }
+.lg-dot { width:10px; height:10px; border-radius:2px; flex-shrink:0; }
+.lg-val { margin-left:auto; font-size:12px; font-weight:600; color:var(--th); }
+
+.callout { padding:9px 14px; border-radius:4px; font-size:11px; line-height:1.55; margin-bottom:10px; }
+.callout-b { background:#EAF3FB; border:1px solid #C8D6E5; color:#3D5470; }
+.callout-w { background:#FFFBEC; border:1px solid #F5E4A5; color:#5A4500; }
+.callout-r { background:#FFF0EE; border:1px solid #FFCDD2; color:#7A1F1A; }
+
+.status-bar { height:28px; background:#1F2D3D; border-top:1px solid rgba(255,255,255,.06); display:flex; align-items:center; padding:0 20px; gap:12px; font-size:10.5px; color:rgba(255,255,255,.45); flex-shrink:0; }
+.status-sep { color:rgba(255,255,255,.2); }
+
+.loading-overlay { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; background:rgba(255,255,255,.85); z-index:10; font-size:13px; color:var(--tm); flex-direction:column; gap:8px; }
+.spinner { width:28px; height:28px; border:3px solid var(--bord); border-top-color:var(--who-blue); border-radius:50%; animation:spin .7s linear infinite; }
+@keyframes spin { to { transform:rotate(360deg); } }
+
+.fin-note { background:#FFFBEC; border:1px solid #F5E4A5; border-radius:4px; padding:10px 14px; font-size:10.5px; color:#5A4500; line-height:1.55; margin-bottom:10px; }
+.fin-note strong { color:#3D2D00; }
+
+.map-ph { background:radial-gradient(ellipse at center,rgba(0,114,184,.08) 0%,#fff 70%); border:1px dashed var(--bord); border-radius:3px; min-height:200px; height:100%; display:flex; align-items:center; justify-content:center; flex-direction:column; gap:6px; color:var(--tm); font-size:11px; }
+.map-icon { font-size:34px; opacity:.42; }
+.map-note { font-size:9.5px; font-style:italic; }
+
+#loading-screen { position:fixed; inset:0; background:#1E2A38; display:flex; align-items:center; justify-content:center; z-index:999; flex-direction:column; gap:16px; }
+#loading-screen .spin2 { width:40px; height:40px; border:4px solid rgba(255,255,255,.15); border-top-color:#71C0E8; border-radius:50%; animation:spin .8s linear infinite; }
+#loading-screen p { color:rgba(255,255,255,.6); font-size:13px; }
+</style>
+</head>
+<body>
+
+<div id="loading-screen">
+  <div class="spin2"></div>
+  <p>Loading WHO Egypt Dashboard…</p>
+</div>
+
+<!-- ── Power BI-style service bar ── -->
+<div class="svc">
+  <div class="svc-pbi">
+    <svg viewBox="0 0 20 20" fill="currentColor"><rect x="2" y="10" width="4" height="8" rx="1"/><rect x="8" y="6" width="4" height="12" rx="1"/><rect x="14" y="2" width="4" height="16" rx="1"/></svg>
+    WHO Egypt
+  </div>
+  <div class="svc-name">Emergency Operations Dashboard <span>v3.0 · Live from Fabric Gold Layer</span></div>
+  <div class="svc-nav">
+    <button class="svc-btn">File</button>
+    <button class="svc-btn">View</button>
+    <button class="svc-btn">Share ↑</button>
+    <button class="svc-btn" id="refreshBtn" onclick="loadAllData()">⟳ Refresh</button>
+  </div>
+</div>
+
+<div class="layout">
+
+<!-- ── SIDEBAR ── -->
+<div class="side">
+  <div class="side-head">
+    <div class="side-logo-row">
+      <div class="side-logo-txt">
+        <div class="side-org">WHO · Egypt Country Office</div>
+        <div class="side-cty">Emergency Operations <span>· EM/WHO/EGY</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="side-list">
+    <div class="side-item home-item active" onclick="goPage('home')" id="nav-home">
+      <span>🏠</span> Landing
+    </div>
+
+    <div class="side-grp">
+      <div class="side-grp-bar" style="background:#E74C3C"></div>
+      <div class="side-grp-lbl">Refugees &amp; Migrants Response</div>
+    </div>
+    <div class="side-item" onclick="setPillarContext('resp');goPage('resp_hecp')" id="nav-resp_hecp">
+      <div class="dot" style="background:#E74C3C"></div> Health Expenses (HECP)
+    </div>
+    <div class="side-item" onclick="setPillarContext('resp');goPage('resp_cb')" id="nav-resp_cb">
+      <div class="dot" style="background:#E74C3C"></div> Capacity Building
+    </div>
+    <div class="side-item" onclick="setPillarContext('resp');goPage('resp_proc')" id="nav-resp_proc">
+      <div class="dot" style="background:#E74C3C"></div> Procurement
+    </div>
+    <div class="side-item" onclick="setPillarContext('resp');goPage('resp_fund')" id="nav-resp_fund">
+      <div class="dot" style="background:#E74C3C"></div> Fund Tracker
+    </div>
+    <div class="side-item" onclick="setPillarContext('resp');goPage('evacuees')" id="nav-evacuees">
+      <div class="dot" style="background:#E74C3C"></div> Evacuees
+    </div>
+
+    <div class="side-grp">
+      <div class="side-grp-bar" style="background:#007A76"></div>
+      <div class="side-grp-lbl">Egypt Health Security — Preparedness</div>
+    </div>
+    <div class="side-item" onclick="setPillarContext('prep');goPage('prep_assess')" id="nav-prep_assess">
+      <div class="dot" style="background:#007A76"></div> Assessment
+    </div>
+    <div class="side-item" onclick="setPillarContext('prep');goPage('prep_cb')" id="nav-prep_cb">
+      <div class="dot" style="background:#007A76"></div> Capacity Building
+    </div>
+    <div class="side-item" onclick="setPillarContext('prep');goPage('prep_proc')" id="nav-prep_proc">
+      <div class="dot" style="background:#007A76"></div> Procurement
+    </div>
+    <div class="side-item" onclick="setPillarContext('prep');goPage('prep_fund')" id="nav-prep_fund">
+      <div class="dot" style="background:#007A76"></div> Fund Tracker
+    </div>
+
+    <div class="side-grp">
+      <div class="side-grp-bar" style="background:#7A92AB"></div>
+      <div class="side-grp-lbl">Knowledge Products</div>
+    </div>
+    <div class="side-item" onclick="goPage('pubs')" id="nav-pubs">
+      <div class="dot" style="background:#7A92AB"></div> Publications <span class="side-meta">docs</span>
+    </div>
+  </div>
+  <div class="side-foot">
+    <div class="live"><div class="live-dot"></div> Live · GitHub Pages</div>
+    <div class="side-foot-meta" id="lastUpdated">Loading data…</div>
+  </div>
+</div>
+
+<!-- ── CANVAS AREA ── -->
+<div class="canvas-wrap" id="canvas-area">
+
+<!-- ════ HOME ════ -->
+<div class="home active" id="page-home">
+  <div class="hero">
+    <div class="hero-inner">
+      <div class="hero-text">
+        <div class="hero-eye">WHO Country Office · Arab Republic of Egypt</div>
+        <h1 class="hero-title">Emergency Operations <b>Dashboard</b></h1>
+        <p class="hero-sub">A shared operational picture for refugee &amp; migrant response and Egypt's Health Security Agenda. Data loads live from the Gold layer via GitHub Pages.</p>
+      </div>
+    </div>
+  </div>
+  <div style="flex:1; padding:28px 48px 12px; display:grid; grid-template-columns:1fr 1fr; gap:26px; background:var(--bg);">
+    <div onclick="setPillarContext('resp');goPage('resp_hecp')"
+         style="position:relative;border-radius:14px;overflow:hidden;cursor:pointer;min-height:360px;box-shadow:0 8px 28px rgba(122,42,31,.28);display:flex;flex-direction:column;justify-content:flex-end;padding:24px 26px;background:linear-gradient(135deg,#7A2A1F 0%,#A23527 45%,#C0392B 100%);transition:transform .18s ease,box-shadow .18s ease;"
+         onmouseover="this.style.transform='translateY(-3px)';this.style.boxShadow='0 14px 36px rgba(122,42,31,.40)'"
+         onmouseout="this.style.transform='';this.style.boxShadow='0 8px 28px rgba(122,42,31,.28)'">
+      <div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(122,42,31,.20) 0%,rgba(40,12,8,.80) 100%);pointer-events:none;"></div>
+      <div style="position:relative;z-index:2;">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
+          <span style="font-size:10px;font-weight:700;letter-spacing:1.4px;padding:4px 12px;background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.34);border-radius:14px;color:#fff;text-transform:uppercase;">Pillar 1</span>
+          <span style="font-size:17px;font-weight:600;color:#fff;">ضيوفنا</span>
+        </div>
+        <h2 style="font-size:28px;font-weight:600;color:#fff;line-height:1.1;margin-bottom:8px;">Refugees &amp; Migrants<br>Response</h2>
+        <p style="font-size:12px;color:rgba(255,255,255,.90);margin-bottom:14px;max-width:340px;">Gaza &amp; Sudan emergency health operations — HECP, evacuation, capacity building, procurement, fund tracking.</p>
+        <span style="display:inline-flex;align-items:center;gap:8px;font-size:12px;font-weight:600;color:#fff;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.34);padding:8px 18px;border-radius:22px;">Explore →</span>
+      </div>
+    </div>
+    <div onclick="setPillarContext('prep');goPage('prep_assess')"
+         style="position:relative;border-radius:14px;overflow:hidden;cursor:pointer;min-height:360px;box-shadow:0 8px 28px rgba(10,69,64,.28);display:flex;flex-direction:column;justify-content:flex-end;padding:24px 26px;background:linear-gradient(135deg,#0A4540 0%,#007A76 100%);transition:transform .18s ease,box-shadow .18s ease;"
+         onmouseover="this.style.transform='translateY(-3px)';this.style.boxShadow='0 14px 36px rgba(10,69,64,.40)'"
+         onmouseout="this.style.transform='';this.style.boxShadow='0 8px 28px rgba(10,69,64,.28)'">
+      <div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(10,69,64,.20) 0%,rgba(0,30,28,.82) 100%);pointer-events:none;"></div>
+      <div style="position:relative;z-index:2;">
+        <span style="display:inline-block;font-size:10px;font-weight:700;letter-spacing:1.4px;padding:4px 12px;background:rgba(255,255,255,.92);border-radius:14px;color:var(--prep-d);text-transform:uppercase;margin-bottom:12px;">Pillar 2</span>
+        <h2 style="font-size:28px;font-weight:600;color:#fff;line-height:1.1;margin-bottom:8px;">Egypt Health Security<br>Agenda — Preparedness</h2>
+        <p style="font-size:12px;color:rgba(255,255,255,.90);margin-bottom:14px;max-width:340px;">National health security &amp; preparedness — CBRN readiness, assessments, capacity building, procurement, funding.</p>
+        <span style="display:inline-flex;align-items:center;gap:8px;font-size:12px;font-weight:600;color:#fff;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.34);padding:8px 18px;border-radius:22px;">Explore →</span>
+      </div>
+    </div>
+  </div>
+  <div style="background:var(--bg);padding:6px 48px 22px;display:flex;justify-content:center;gap:14px;flex-wrap:wrap;">
+    <div id="home-kpis" style="display:flex;gap:14px;flex-wrap:wrap;width:100%;justify-content:center;">
+      <div class="k blue" style="min-width:180px;flex:1;max-width:220px;"><div class="k-lbl">HECP Patients</div><div class="k-val blue k-loading" id="hk-hecp">…</div><div class="k-sub">Total patients supported</div></div>
+      <div class="k purple" style="min-width:180px;flex:1;max-width:220px;"><div class="k-lbl">Trainees</div><div class="k-val purple k-loading" id="hk-cb">…</div><div class="k-sub">Capacity building</div></div>
+      <div class="k teal" style="min-width:180px;flex:1;max-width:220px;"><div class="k-lbl">Evacuees</div><div class="k-val teal k-loading" id="hk-evac">…</div><div class="k-sub">Medical evacuations</div></div>
+      <div class="k green" style="min-width:180px;flex:1;max-width:220px;"><div class="k-lbl">Awards (USD)</div><div class="k-val green k-loading" id="hk-awards">…</div><div class="k-sub">Fund awards (distinct)</div></div>
+      <div class="k amber" style="min-width:180px;flex:1;max-width:220px;"><div class="k-lbl">Procurement Orders</div><div class="k-val amber k-loading" id="hk-proc">…</div><div class="k-sub">Total supply orders</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ════ RESP: HECP ════ -->
+<div class="canvas" id="page-resp_hecp">
+  <div class="ph resp-bg">
+    <div class="ph-meta-left">
+      <div class="ph-section">Refugees &amp; Migrants Response</div>
+      <div class="ph-title">Health Expenses Coverage Program</div>
+    </div>
+    <span class="ph-badge bg-emerg">Humanitarian Health Service</span>
+    <div class="ph-refresh" id="hecp-refresh">Loading…<br><em>Source: Gold · fact_hecp</em></div>
+  </div>
+  <div class="fbar">
+    <div class="fb-grp"><span class="fb-lbl">Crisis Context</span>
+      <div class="fb-chip-group">
+        <div class="fb-chip active" onclick="filterCrisis('hecp','Both',this)">Both</div>
+        <div class="fb-chip" onclick="filterCrisis('hecp','Gaza',this)"><div class="dot" style="background:#E74C3C"></div>Gaza</div>
+        <div class="fb-chip" onclick="filterCrisis('hecp','Sudan',this)"><div class="dot" style="background:#F39C12"></div>Sudan</div>
+      </div>
+    </div>
+    <span class="fb-tag">Crisis Context filter syncs across response pages</span>
+  </div>
+  <div class="body">
+    <div class="row r-4" id="hecp-kpis">
+      <div class="k red"><div class="k-lbl">Patients Supported</div><div class="k-val red k-loading" id="hecp-k1">…</div><div class="k-sub">Total across all streams</div></div>
+      <div class="k amber"><div class="k-lbl">ICD Codes</div><div class="k-val amber k-loading" id="hecp-k2">…</div><div class="k-sub">Distinct diagnosis codes</div></div>
+      <div class="k blue"><div class="k-lbl">KPI Types</div><div class="k-val blue k-loading" id="hecp-k3">…</div><div class="k-sub">Distinct KPI names</div></div>
+      <div class="k teal"><div class="k-lbl">OPCOs</div><div class="k-val teal k-loading" id="hecp-k4">…</div><div class="k-sub">Operating countries</div></div>
+    </div>
+    <div class="row r-2">
+      <div class="v">
+        <div class="v-hdr"><div class="v-title-wrap"><div class="v-title"><span class="dot" style="background:#E74C3C"></span>Patients by Crisis</div><div class="v-sub">Distribution across Gaza &amp; Sudan streams</div></div><span class="v-tag">Live · fact_hecp</span></div>
+        <div class="v-body" id="hecp-donut"><div style="color:var(--tl);font-size:11px;font-style:italic;">Loading…</div></div>
+      </div>
+      <div class="v">
+        <div class="v-hdr"><div class="v-title-wrap"><div class="v-title"><span class="dot" style="background:#E74C3C"></span>Top KPI Categories</div><div class="v-sub">By KPI_name field</div></div><span class="v-tag">Live · fact_hecp</span></div>
+        <div class="v-body" id="hecp-bars"><div style="color:var(--tl);font-size:11px;font-style:italic;">Loading…</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════ RESP: CAPACITY BUILDING ════ -->
+<div class="canvas" id="page-resp_cb">
+  <div class="ph resp-bg">
+    <div class="ph-meta-left">
+      <div class="ph-section">Refugees &amp; Migrants Response</div>
+      <div class="ph-title">Capacity Building</div>
+    </div>
+    <span class="ph-badge bg-emerg">Workforce Strengthening</span>
+    <div class="ph-refresh">Live<br><em>Source: Gold · fact_capacity_building</em></div>
+  </div>
+  <div class="fbar">
+    <div class="fb-grp"><span class="fb-lbl">Crisis Context</span>
+      <div class="fb-chip-group">
+        <div class="fb-chip active">Both</div>
+        <div class="fb-chip"><div class="dot" style="background:#E74C3C"></div>Gaza</div>
+        <div class="fb-chip"><div class="dot" style="background:#F39C12"></div>Sudan</div>
+      </div>
+    </div>
+    <span class="fb-tag">⚠ Use Trainees count (not Trainees_Raw) per data rules</span>
+  </div>
+  <div class="body">
+    <div class="callout callout-w">⚠ <strong>Data rule:</strong> Trainees shown = <code>Trainees</code> column (~17K), NOT <code>Trainees_Raw</code> (~1.27M) which is inflated by awareness campaigns. Awareness activities are flagged separately.</div>
+    <div class="row r-4" id="cb-kpis">
+      <div class="k purple"><div class="k-lbl">Trainees Reached</div><div class="k-val purple k-loading" id="cb-k1">…</div><div class="k-sub">Sum(Trainees) — deduplicated</div></div>
+      <div class="k blue"><div class="k-lbl">Training Events</div><div class="k-val blue k-loading" id="cb-k2">…</div><div class="k-sub">Distinct activities</div></div>
+      <div class="k teal"><div class="k-lbl">Awareness Events</div><div class="k-val teal k-loading" id="cb-k3">…</div><div class="k-sub">Flagged separately</div></div>
+      <div class="k green"><div class="k-lbl">Funding Streams</div><div class="k-val green k-loading" id="cb-k4">…</div><div class="k-sub">Distinct funding sources</div></div>
+    </div>
+    <div class="row r-2">
+      <div class="v">
+        <div class="v-hdr"><div class="v-title-wrap"><div class="v-title"><span class="dot" style="background:#8E44AD"></span>Trainees by Pillar</div><div class="v-sub">Response vs Preparedness activities</div></div><span class="v-tag">Live · fact_capacity_building</span></div>
+        <div class="v-body" id="cb-donut"><div style="color:var(--tl);font-size:11px;font-style:italic;">Loading…</div></div>
+      </div>
+      <div class="v">
+        <div class="v-hdr"><div class="v-title-wrap"><div class="v-title"><span class="dot" style="background:#8E44AD"></span>Top Training Activities</div><div class="v-sub">By trainee count</div></div><span class="v-tag">Live · fact_capacity_building</span></div>
+        <div class="v-body" id="cb-bars"><div style="color:var(--tl);font-size:11px;font-style:italic;">Loading…</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════ RESP: PROCUREMENT ════ -->
+<div class="canvas" id="page-resp_proc">
+  <div class="ph resp-bg">
+    <div class="ph-meta-left">
+      <div class="ph-section">Refugees &amp; Migrants Response</div>
+      <div class="ph-title">Procurement</div>
+    </div>
+    <span class="ph-badge bg-emerg">Supply Chain</span>
+    <div class="ph-refresh">Live<br><em>Source: Gold · fact_procurement</em></div>
+  </div>
+  <div class="fbar">
+    <div class="fb-grp"><span class="fb-lbl">Crisis Context</span>
+      <div class="fb-chip-group">
+        <div class="fb-chip active">Both</div>
+        <div class="fb-chip"><div class="dot" style="background:#E74C3C"></div>Gaza</div>
+        <div class="fb-chip"><div class="dot" style="background:#F39C12"></div>Sudan</div>
+      </div>
+    </div>
+  </div>
+  <div class="body">
+    <div class="row r-4" id="proc-kpis">
+      <div class="k blue"><div class="k-lbl">Total Orders</div><div class="k-val blue k-loading" id="proc-k1">…</div><div class="k-sub">All procurement records</div></div>
+      <div class="k amber"><div class="k-lbl">Total USD Value</div><div class="k-val amber k-loading" id="proc-k2">…</div><div class="k-sub">Sum of procurement value</div></div>
+      <div class="k green"><div class="k-lbl">Delivered</div><div class="k-val green k-loading" id="proc-k3">…</div><div class="k-sub">Orders with delivery date</div></div>
+      <div class="k teal"><div class="k-lbl">Supply Categories</div><div class="k-val teal k-loading" id="proc-k4">…</div><div class="k-sub">Distinct supply types</div></div>
+    </div>
+    <div class="row r-2">
+      <div class="v">
+        <div class="v-hdr"><div class="v-title-wrap"><div class="v-title"><span class="dot" style="background:#2980B9"></span>Orders by Supply Category</div><div class="v-sub">Count per category</div></div><span class="v-tag">Live · fact_procurement</span></div>
+        <div class="v-body" id="proc-bars"><div style="color:var(--tl);font-size:11px;font-style:italic;">Loading…</div></div>
+      </div>
+      <div class="v">
+        <div class="v-hdr"><div class="v-title-wrap"><div class="v-title"><span class="dot" style="background:#E67E22"></span>USD by Crisis</div><div class="v-sub">Procurement value split</div></div><span class="v-tag">Live · fact_procurement</span></div>
+        <div class="v-body" id="proc-donut"><div style="color:var(--tl);font-size:11px;font-style:italic;">Loading…</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════ RESP: FUND TRACKER ════ -->
+<div class="canvas" id="page-resp_fund">
+  <div class="ph resp-bg">
+    <div class="ph-meta-left">
+      <div class="ph-section">Refugees &amp; Migrants Response</div>
+      <div class="ph-title">Fund Tracker</div>
+    </div>
+    <span class="ph-badge bg-fin">Financing Overview</span>
+    <div class="ph-refresh">Live<br><em>Source: Gold · fact_fund_awards · fact_fund_appeals · fact_fund_donors</em></div>
+  </div>
+  <div class="body" style="overflow-y:auto;">
+    <div class="fin-note">⚠ <strong>Fund Firewall:</strong> Awards, Appeals &amp; Donors are <em>different financing instruments</em>. <strong>Never sum them together.</strong> Awards = bilateral grants ($28.8M). Appeals = multi-agency appeal received ($103M+). Donors = direct donor contributions ($40.6M).</div>
+    <div class="row r-3">
+      <div class="k green">
+        <div class="k-lbl">Fund Awards (Bilateral)</div>
+        <div class="k-val green k-loading" id="fund-awards-total">…</div>
+        <div class="k-sub k-loading" id="fund-awards-count">… awards</div>
+      </div>
+      <div class="k blue">
+        <div class="k-lbl">Appeals — Amount Received</div>
+        <div class="k-val blue k-loading" id="fund-appeals-total">…</div>
+        <div class="k-sub k-loading" id="fund-appeals-count">… appeal records</div>
+      </div>
+      <div class="k purple">
+        <div class="k-lbl">Direct Donor Contributions</div>
+        <div class="k-val purple k-loading" id="fund-donors-total">…</div>
+        <div class="k-sub k-loading" id="fund-donors-count">… donors</div>
+      </div>
+    </div>
+    <div class="row r-2">
+      <div class="v">
+        <div class="v-hdr"><div class="v-title-wrap"><div class="v-title"><span class="dot" style="background:#27AE60"></span>Top Fund Awards by Amount</div></div><span class="v-tag">Live · fact_fund_awards</span></div>
+        <div class="v-body" id="fund-awards-bars"><div style="color:var(--tl);font-size:11px;font-style:italic;">Loading…</div></div>
+      </div>
+      <div class="v">
+        <div class="v-hdr"><div class="v-title-wrap"><div class="v-title"><span class="dot" style="background:#8E44AD"></span>Top Donor Contributions</div></div><span class="v-tag">Live · fact_fund_donors</span></div>
+        <div class="v-body" id="fund-donors-bars"><div style="color:var(--tl);font-size:11px;font-style:italic;">Loading…</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════ EVACUEES ════ -->
+<div class="canvas" id="page-evacuees">
+  <div class="ph resp-bg">
+    <div class="ph-meta-left">
+      <div class="ph-section">Refugees &amp; Migrants Response</div>
+      <div class="ph-title">Medical Evacuees</div>
+    </div>
+    <span class="ph-badge bg-emerg">MedEvac Operations</span>
+    <div class="ph-refresh">Live<br><em>Source: Gold · fact_evacuees · fact_medevac</em></div>
+  </div>
+  <div class="body" style="overflow-y:auto;">
+    <div class="callout callout-r">🔒 <strong>Privacy note:</strong> Household_ID field is for internal model use only. Not displayed in this dashboard pending data governance approval.</div>
+    <div class="row r-4" id="evac-kpis">
+      <div class="k red"><div class="k-lbl">Total Evacuees</div><div class="k-val red k-loading" id="evac-k1">…</div><div class="k-sub">Records in fact_evacuees</div></div>
+      <div class="k amber"><div class="k-lbl">Total Evacuation Days</div><div class="k-val amber k-loading" id="evac-k2">…</div><div class="k-sub">MedEvac daily records</div></div>
+      <div class="k blue"><div class="k-lbl">Avg / Day</div><div class="k-val blue k-loading" id="evac-k3">…</div><div class="k-sub">Using Total_Evacuees_day</div></div>
+      <div class="k teal"><div class="k-lbl">Age Groups</div><div class="k-val teal k-loading" id="evac-k4">…</div><div class="k-sub">Distinct age classifications</div></div>
+    </div>
+    <div class="row r-2">
+      <div class="v">
+        <div class="v-hdr"><div class="v-title-wrap"><div class="v-title"><span class="dot" style="background:#E74C3C"></span>Evacuees by Gender</div></div><span class="v-tag">Live · fact_evacuees</span></div>
+        <div class="v-body" id="evac-gender"><div style="color:var(--tl);font-size:11px;font-style:italic;">Loading…</div></div>
+      </div>
+      <div class="v">
+        <div class="v-hdr"><div class="v-title-wrap"><div class="v-title"><span class="dot" style="background:#F39C12"></span>Evacuees by Age Group</div></div><span class="v-tag">Live · fact_evacuees</span></div>
+        <div class="v-body" id="evac-age"><div style="color:var(--tl);font-size:11px;font-style:italic;">Loading…</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════ PREP: ASSESSMENT ════ -->
+<div class="canvas" id="page-prep_assess">
+  <div class="ph prep-bg">
+    <div class="ph-meta-left">
+      <div class="ph-section">Egypt Health Security — Preparedness</div>
+      <div class="ph-title">Assessment</div>
+    </div>
+    <span class="ph-badge bg-prep">Site Visits &amp; Evaluations</span>
+    <div class="ph-refresh">Live<br><em>Source: Gold · fact_assessment</em></div>
+  </div>
+  <div class="body">
+    <div class="callout callout-b">ℹ <strong>Metric:</strong> Primary metric is <em>Site Visits</em> (not participants). Participant data available but secondary.</div>
+    <div class="row r-4" id="assess-kpis">
+      <div class="k teal"><div class="k-lbl">Site Visits</div><div class="k-val teal k-loading" id="assess-k1">…</div><div class="k-sub">Total assessment records</div></div>
+      <div class="k blue"><div class="k-lbl">Participants</div><div class="k-val blue k-loading" id="assess-k2">…</div><div class="k-sub">Where available</div></div>
+      <div class="k purple"><div class="k-lbl">Assessment Types</div><div class="k-val purple k-loading" id="assess-k3">…</div><div class="k-sub">Distinct activity types</div></div>
+      <div class="k green"><div class="k-lbl">Funding Sources</div><div class="k-val green k-loading" id="assess-k4">…</div><div class="k-sub">Distinct</div></div>
+    </div>
+    <div class="row r-2">
+      <div class="v">
+        <div class="v-hdr"><div class="v-title-wrap"><div class="v-title"><span class="dot" style="background:#16A085"></span>Assessments by Type</div></div><span class="v-tag">Live · fact_assessment</span></div>
+        <div class="v-body" id="assess-bars"><div style="color:var(--tl);font-size:11px;font-style:italic;">Loading…</div></div>
+      </div>
+      <div class="v">
+        <div class="v-hdr"><div class="v-title-wrap"><div class="v-title"><span class="dot" style="background:#007A76"></span>Health Policy Activities</div></div><span class="v-tag">Live · fact_health_policy</span></div>
+        <div class="v-body" id="policy-bars"><div style="color:var(--tl);font-size:11px;font-style:italic;">Loading…</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════ PREP: CAPACITY BUILDING ════ -->
+<div class="canvas" id="page-prep_cb">
+  <div class="ph prep-bg">
+    <div class="ph-meta-left">
+      <div class="ph-section">Egypt Health Security — Preparedness</div>
+      <div class="ph-title">Capacity Building</div>
+    </div>
+    <span class="ph-badge bg-prep">Preparedness Training</span>
+    <div class="ph-refresh">Live<br><em>Source: Gold · fact_capacity_building (Pillar=Preparedness)</em></div>
+  </div>
+  <div class="body">
+    <div class="callout callout-b">ℹ Showing Preparedness pillar activities only. Same Trainees (honest) metric applied.</div>
+    <div class="row r-4" id="prep-cb-kpis">
+      <div class="k purple"><div class="k-lbl">Trainees (Prep)</div><div class="k-val purple k-loading" id="prep-cb-k1">…</div><div class="k-sub">Preparedness activities</div></div>
+      <div class="k blue"><div class="k-lbl">Training Events</div><div class="k-val blue k-loading" id="prep-cb-k2">…</div><div class="k-sub">Distinct</div></div>
+      <div class="k teal"><div class="k-lbl">Awareness Events</div><div class="k-val teal k-loading" id="prep-cb-k3">…</div><div class="k-sub">Flagged separately</div></div>
+      <div class="k green"><div class="k-lbl">Funding Streams</div><div class="k-val green k-loading" id="prep-cb-k4">…</div><div class="k-sub">Distinct</div></div>
+    </div>
+    <div class="row r-2">
+      <div class="v">
+        <div class="v-hdr"><div class="v-title-wrap"><div class="v-title"><span class="dot" style="background:#007A76"></span>Trainees by Activity</div></div><span class="v-tag">Live · fact_capacity_building</span></div>
+        <div class="v-body" id="prep-cb-bars"><div style="color:var(--tl);font-size:11px;font-style:italic;">Loading…</div></div>
+      </div>
+      <div class="v">
+        <div class="v-hdr"><div class="v-title-wrap"><div class="v-title"><span class="dot" style="background:#8E44AD"></span>Training Distribution</div></div><span class="v-tag">Live · fact_capacity_building</span></div>
+        <div class="v-body" id="prep-cb-donut"><div style="color:var(--tl);font-size:11px;font-style:italic;">Loading…</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════ PREP: PROCUREMENT ════ -->
+<div class="canvas" id="page-prep_proc">
+  <div class="ph prep-bg">
+    <div class="ph-meta-left">
+      <div class="ph-section">Egypt Health Security — Preparedness</div>
+      <div class="ph-title">Procurement</div>
+    </div>
+    <span class="ph-badge bg-prep">Supply Chain — Preparedness</span>
+    <div class="ph-refresh">Live<br><em>Source: Gold · fact_procurement (Pillar=Preparedness)</em></div>
+  </div>
+  <div class="body">
+    <div id="prep-proc-kpis" class="row r-4">
+      <div class="k blue"><div class="k-lbl">Prep Orders</div><div class="k-val blue k-loading" id="prep-proc-k1">…</div><div class="k-sub">Preparedness procurement</div></div>
+      <div class="k amber"><div class="k-lbl">USD Value</div><div class="k-val amber k-loading" id="prep-proc-k2">…</div><div class="k-sub">Sum procurement value</div></div>
+      <div class="k green"><div class="k-lbl">Delivered</div><div class="k-val green k-loading" id="prep-proc-k3">…</div><div class="k-sub">With delivery date</div></div>
+      <div class="k teal"><div class="k-lbl">Supply Types</div><div class="k-val teal k-loading" id="prep-proc-k4">…</div><div class="k-sub">Distinct categories</div></div>
+    </div>
+    <div class="v" style="margin-top:10px;">
+      <div class="v-hdr"><div class="v-title-wrap"><div class="v-title"><span class="dot" style="background:#007A76"></span>Procurement by Supply Type</div></div><span class="v-tag">Live · fact_procurement</span></div>
+      <div class="v-body" id="prep-proc-bars"><div style="color:var(--tl);font-size:11px;font-style:italic;">Loading…</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ════ PREP: FUND TRACKER ════ -->
+<div class="canvas" id="page-prep_fund">
+  <div class="ph prep-bg">
+    <div class="ph-meta-left">
+      <div class="ph-section">Egypt Health Security — Preparedness</div>
+      <div class="ph-title">Fund Tracker</div>
+    </div>
+    <span class="ph-badge bg-fin">Preparedness Financing</span>
+    <div class="ph-refresh">Live<br><em>Source: Gold · fact_fund_awards (Preparedness)</em></div>
+  </div>
+  <div class="body" style="overflow-y:auto;">
+    <div class="fin-note">⚠ <strong>Fund Firewall applies here too.</strong> Showing Awards instrument only for Preparedness pillar. Do not sum with Appeals or Donor figures.</div>
+    <div class="row r-3" id="prep-fund-kpis">
+      <div class="k green"><div class="k-lbl">Preparedness Awards</div><div class="k-val green k-loading" id="prep-fund-k1">…</div><div class="k-sub">Bilateral grants (Prep)</div></div>
+      <div class="k blue"><div class="k-lbl">Number of Awards</div><div class="k-val blue k-loading" id="prep-fund-k2">…</div><div class="k-sub">Count of records</div></div>
+      <div class="k teal"><div class="k-lbl">Funding Instruments</div><div class="k-val teal k-loading" id="prep-fund-k3">…</div><div class="k-sub">Distinct types</div></div>
+    </div>
+    <div class="v" style="margin-top:10px;">
+      <div class="v-hdr"><div class="v-title-wrap"><div class="v-title"><span class="dot" style="background:#27AE60"></span>Awards by Amount</div></div><span class="v-tag">Live · fact_fund_awards</span></div>
+      <div class="v-body" id="prep-fund-bars"><div style="color:var(--tl);font-size:11px;font-style:italic;">Loading…</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ════ PUBLICATIONS ════ -->
+<div class="canvas" id="page-pubs">
+  <div class="ph" style="--ph-bg-a:#003865;--ph-bg-b:#0072B8;">
+    <div class="ph-meta-left">
+      <div class="ph-section">WHO Egypt · Knowledge Products</div>
+      <div class="ph-title">Publications &amp; Documents</div>
+    </div>
+    <span class="ph-badge bg-fin">Situation Reports · Appeals · Briefs</span>
+    <div class="ph-refresh">Document library<br><em>updated as products are released</em></div>
+  </div>
+  <div class="fbar">
+    <div class="fb-grp"><span class="fb-lbl">Type</span>
+      <div class="fb-chip-group">
+        <div class="fb-chip active">All</div>
+        <div class="fb-chip">Situation Reports</div>
+        <div class="fb-chip">Appeals</div>
+        <div class="fb-chip">Briefs</div>
+      </div>
+    </div>
+  </div>
+  <div class="body" style="overflow-y:auto;">
+    <div style="background:#EAF3FB;border:1px solid #C8D6E5;border-radius:6px;padding:12px 16px;margin-bottom:14px;font-size:11.5px;color:#3D5470;">
+      <b style="color:#003865;">Document Library.</b> Wire each card's <code>href</code> to the SharePoint/WHO URL for the published document.
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:18px;">
+      <a href="#" style="text-decoration:none;background:#fff;border:1px solid var(--bord);border-radius:8px;overflow:hidden;display:flex;flex-direction:column;cursor:pointer;transition:box-shadow .15s;" onmouseover="this.style.boxShadow='0 4px 16px rgba(0,0,0,.10)'" onmouseout="this.style.boxShadow=''">
+        <div style="height:96px;background:linear-gradient(135deg,#E74C3C,#C0392B);display:flex;align-items:flex-end;padding:10px 12px;"><span style="font-size:8px;font-weight:700;letter-spacing:1px;color:#fff;background:rgba(0,0,0,.22);padding:3px 8px;border-radius:3px;">SITREP</span></div>
+        <div style="padding:12px 14px;flex:1;display:flex;flex-direction:column;">
+          <div style="font-size:9px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:#E74C3C;margin-bottom:4px;">Situation Report</div>
+          <div style="font-size:12.5px;font-weight:600;color:var(--th);line-height:1.3;margin-bottom:4px;">SitRep #24</div>
+          <div style="font-size:10.5px;color:var(--tm);margin-bottom:10px;">Gaza &amp; Sudan response</div>
+          <div style="margin-top:auto;display:flex;align-items:center;justify-content:space-between;"><span style="font-size:9.5px;color:var(--tl);">Jun 2026</span><span style="font-size:10px;font-weight:600;color:#E74C3C;">Open ↗</span></div>
+        </div>
+      </a>
+      <a href="#" style="text-decoration:none;background:#fff;border:1px solid var(--bord);border-radius:8px;overflow:hidden;display:flex;flex-direction:column;cursor:pointer;transition:box-shadow .15s;" onmouseover="this.style.boxShadow='0 4px 16px rgba(0,0,0,.10)'" onmouseout="this.style.boxShadow=''">
+        <div style="height:96px;background:linear-gradient(135deg,#E67E22,#D35400);display:flex;align-items:flex-end;padding:10px 12px;"><span style="font-size:8px;font-weight:700;letter-spacing:1px;color:#fff;background:rgba(0,0,0,.22);padding:3px 8px;border-radius:3px;">APPEAL</span></div>
+        <div style="padding:12px 14px;flex:1;display:flex;flex-direction:column;">
+          <div style="font-size:9px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:#E67E22;margin-bottom:4px;">Flash Appeal</div>
+          <div style="font-size:12.5px;font-weight:600;color:var(--th);line-height:1.3;margin-bottom:4px;">Egypt Refugee &amp; Migrant Health Appeal</div>
+          <div style="font-size:10.5px;color:var(--tm);margin-bottom:10px;">Multi-agency</div>
+          <div style="margin-top:auto;display:flex;align-items:center;justify-content:space-between;"><span style="font-size:9.5px;color:var(--tl);">2026</span><span style="font-size:10px;font-weight:600;color:#E67E22;">Open ↗</span></div>
+        </div>
+      </a>
+      <a href="#" style="text-decoration:none;background:#fff;border:1px solid var(--bord);border-radius:8px;overflow:hidden;display:flex;flex-direction:column;cursor:pointer;transition:box-shadow .15s;" onmouseover="this.style.boxShadow='0 4px 16px rgba(0,0,0,.10)'" onmouseout="this.style.boxShadow=''">
+        <div style="height:96px;background:linear-gradient(135deg,#007A76,#005552);display:flex;align-items:flex-end;padding:10px 12px;"><span style="font-size:8px;font-weight:700;letter-spacing:1px;color:#fff;background:rgba(0,0,0,.22);padding:3px 8px;border-radius:3px;">BRIEF</span></div>
+        <div style="padding:12px 14px;flex:1;display:flex;flex-direction:column;">
+          <div style="font-size:9px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:#007A76;margin-bottom:4px;">Preparedness Brief</div>
+          <div style="font-size:12.5px;font-weight:600;color:var(--th);line-height:1.3;margin-bottom:4px;">CBRN Readiness Brief</div>
+          <div style="font-size:10.5px;color:var(--tm);margin-bottom:10px;">Egypt HSA — Preparedness</div>
+          <div style="margin-top:auto;display:flex;align-items:center;justify-content:space-between;"><span style="font-size:9.5px;color:var(--tl);">Q2 2026</span><span style="font-size:10px;font-weight:600;color:#007A76;">Open ↗</span></div>
+        </div>
+      </a>
+      <a href="#" style="text-decoration:none;background:#fff;border:1px solid var(--bord);border-radius:8px;overflow:hidden;display:flex;flex-direction:column;cursor:pointer;transition:box-shadow .15s;" onmouseover="this.style.boxShadow='0 4px 16px rgba(0,0,0,.10)'" onmouseout="this.style.boxShadow=''">
+        <div style="height:96px;background:linear-gradient(135deg,#2980B9,#1A5276);display:flex;align-items:flex-end;padding:10px 12px;"><span style="font-size:8px;font-weight:700;letter-spacing:1px;color:#fff;background:rgba(0,0,0,.22);padding:3px 8px;border-radius:3px;">FACTSHEET</span></div>
+        <div style="padding:12px 14px;flex:1;display:flex;flex-direction:column;">
+          <div style="font-size:9px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:#2980B9;margin-bottom:4px;">Factsheet</div>
+          <div style="font-size:12.5px;font-weight:600;color:var(--th);line-height:1.3;margin-bottom:4px;">Health Needs Overview</div>
+          <div style="font-size:10.5px;color:var(--tm);margin-bottom:10px;">WHO Egypt · 2026</div>
+          <div style="margin-top:auto;display:flex;align-items:center;justify-content:space-between;"><span style="font-size:9.5px;color:var(--tl);">2026</span><span style="font-size:10px;font-weight:600;color:#2980B9;">Open ↗</span></div>
+        </div>
+      </a>
+    </div>
+  </div>
+</div>
+
+</div><!-- end canvas-wrap -->
+</div><!-- end layout -->
+
+<!-- Status bar -->
+<div class="status-bar">
+  <span id="status-page">Landing</span>
+  <span class="status-sep">|</span>
+  <span id="status-data">Loading data…</span>
+  <span style="margin-left:auto">WHO Egypt · Emergency Operations Dashboard · Data: GitHub Pages JSON</span>
+</div>
+
+<script>
+// ── DATA STORE ──
+const DATA = {};
+const BASE = 'https://raw.githubusercontent.com/diaab9/who-egypt-dashboard/main/data/';
+
+function fmt(n) {
+  if (n === undefined || n === null || isNaN(n)) return 'N/A';
+  if (n >= 1000000) return '$' + (n/1000000).toFixed(1) + 'M';
+  if (n >= 1000) return n.toLocaleString();
+  return n.toString();
+}
+function fmtN(n) {
+  if (n === undefined || n === null || isNaN(n)) return 'N/A';
+  return Math.round(n).toLocaleString();
+}
+function fmtUSD(n) {
+  if (!n || isNaN(n)) return '$0';
+  if (n >= 1000000) return '$' + (n/1000000).toFixed(1) + 'M';
+  if (n >= 1000) return '$' + (n/1000).toFixed(0) + 'K';
+  return '$' + n.toFixed(0);
+}
+
+async function fetchJSON(name) {
+  try {
+    const r = await fetch(BASE + name + '.json');
+    if (!r.ok) throw new Error(r.status);
+    DATA[name] = await r.json();
+    return DATA[name];
+  } catch(e) {
+    console.warn('Failed to load', name, e);
+    DATA[name] = [];
+    return [];
+  }
+}
+
+async function loadAllData() {
+  document.getElementById('status-data').textContent = 'Refreshing…';
+  const files = ['hecp','capacity_building','procurement','fund_awards','fund_appeals','fund_donors','evacuees','medevac','assessment','health_policy','meta'];
+  await Promise.all(files.map(f => fetchJSON(f)));
+  
+  populateAll();
+  
+  const meta = DATA.meta || {};
+  document.getElementById('lastUpdated').textContent = 'Updated: ' + (meta.generated_at || new Date().toISOString().slice(0,10));
+  document.getElementById('status-data').textContent = 'Data loaded · ' + files.length + ' tables';
+  document.getElementById('loading-screen').style.display = 'none';
+}
+
+function populateAll() {
+  populateHome();
+  populateHECP();
+  populateCB();
+  populateProc();
+  populateFunds();
+  populateEvacuees();
+  populateAssessment();
+  populatePrepCB();
+  populatePrepProc();
+  populatePrepFund();
+}
+
+function set(id, val) {
+  const el = document.getElementById(id);
+  if (el) { el.textContent = val; el.classList.remove('k-loading'); }
+}
+
+function makeBars(data, labelKey, valKey, color, maxN) {
+  if (!data || !data.length) return '<div style="color:var(--tl);font-size:11px;font-style:italic;">No data</div>';
+  const sorted = [...data].sort((a,b) => (b[valKey]||0) - (a[valKey]||0)).slice(0, maxN||7);
+  const maxVal = sorted[0]?.[valKey] || 1;
+  return '<div class="bars">' + sorted.map(r => {
+    const lbl = String(r[labelKey] || 'Unknown').slice(0,26);
+    const val = r[valKey] || 0;
+    const pct = Math.min(100, Math.round(val/maxVal*100));
+    const disp = val >= 1000 ? fmtUSD(val) : fmtN(val);
+    return `<div class="bar"><div class="bar-lbl left" title="${r[labelKey]}">${lbl}</div><div class="bar-trk"><div class="bar-fill" style="width:${pct}%;background:${color}"></div></div><div class="bar-val">${disp}</div></div>`;
+  }).join('') + '</div>';
+}
+
+function makeDonut(slices) {
+  // slices: [{label, val, color}]
+  const total = slices.reduce((s,x) => s + (x.val||0), 0);
+  if (!total) return '<div style="color:var(--tl);font-size:11px;font-style:italic;">No data</div>';
+  let offset = 0;
+  const circ = 251;
+  const arcs = slices.map(s => {
+    const len = Math.round((s.val/total)*circ);
+    const arc = `<circle cx="55" cy="55" r="40" fill="none" stroke="${s.color}" stroke-width="16" stroke-dasharray="${len} ${circ}" stroke-dashoffset="${-offset}" transform="rotate(-90 55 55)"/>`;
+    offset += len;
+    return arc;
+  });
+  const legend = slices.map(s => `<div class="lg-row"><div class="lg-dot" style="background:${s.color}"></div>${String(s.label).slice(0,20)}<span class="lg-val">${fmtN(s.val)}</span></div>`).join('');
+  return `<div class="donut-wrap"><svg viewBox="0 0 110 110" width="110" height="110"><circle cx="55" cy="55" r="40" fill="none" stroke="rgba(0,56,101,.06)" stroke-width="16"/>${arcs.join('')}<text x="55" y="51" text-anchor="middle" font-size="11" fill="#1A2940" font-weight="600">${fmtN(total)}</text></svg><div class="donut-legend">${legend}</div></div>`;
+}
+
+function populateHome() {
+  const hecp = DATA.hecp || [];
+  const cb = DATA.capacity_building || [];
+  const evac = DATA.evacuees || [];
+  const awards = DATA.fund_awards || [];
+  const proc = DATA.procurement || [];
+  set('hk-hecp', fmtN(hecp.length));
+  set('hk-cb', fmtN(cb.reduce((s,r)=>s+(r.Trainees||0),0)));
+  set('hk-evac', fmtN(evac.length));
+  const awardTotal = awards.reduce((s,r)=>s+(r.Award_Amount_USD||r.Amount_USD||0),0);
+  set('hk-awards', fmtUSD(awardTotal));
+  set('hk-proc', fmtN(proc.length));
+}
+
+function populateHECP() {
+  const d = DATA.hecp || [];
+  set('hecp-k1', fmtN(d.length));
+  const codes = new Set(d.map(r=>r.ICD_Code).filter(Boolean));
+  set('hecp-k2', fmtN(codes.size));
+  const kpis = new Set(d.map(r=>r.KPI_name||r.kpi_name).filter(Boolean));
+  set('hecp-k3', fmtN(kpis.size));
+  const opcos = new Set(d.map(r=>r.opco||r.OPCO).filter(Boolean));
+  set('hecp-k4', fmtN(opcos.size));
+
+  // Donut by opco/crisis
+  const byOpco = {};
+  d.forEach(r => { const k = r.opco||r.OPCO||'Unknown'; byOpco[k]=(byOpco[k]||0)+1; });
+  const colors = ['#E74C3C','#F39C12','#2980B9','#8E44AD','#16A085','#E67E22'];
+  const slices = Object.entries(byOpco).sort((a,b)=>b[1]-a[1]).slice(0,5).map(([k,v],i)=>({label:k,val:v,color:colors[i]}));
+  const donutEl = document.getElementById('hecp-donut');
+  if(donutEl) donutEl.innerHTML = slices.length ? makeDonut(slices) : '<div style="color:var(--tl);font-size:11px;">No data</div>';
+
+  // Bars by KPI_name
+  const byKPI = {};
+  d.forEach(r => { const k = r.KPI_name||r.kpi_name||'Unknown'; byKPI[k]=(byKPI[k]||0)+1; });
+  const kpiData = Object.entries(byKPI).map(([k,v])=>({name:k,count:v}));
+  const barsEl = document.getElementById('hecp-bars');
+  if(barsEl) barsEl.innerHTML = makeBars(kpiData,'name','count','#E74C3C',7);
+}
+
+function populateCB() {
+  const d = DATA.capacity_building || [];
+  const trainTotal = d.reduce((s,r)=>s+(r.Trainees||0),0);
+  const events = new Set(d.map(r=>r['Training/Activity_Name']||r.Training_Name).filter(Boolean));
+  const aware = d.filter(r=>r.Is_Awareness_Campaign||r.is_awareness_campaign).length;
+  const funds = new Set(d.map(r=>r.Funding_stream||r.funding_stream).filter(Boolean));
+  set('cb-k1', fmtN(trainTotal));
+  set('cb-k2', fmtN(events.size));
+  set('cb-k3', fmtN(aware));
+  set('cb-k4', fmtN(funds.size));
+
+  // Donut by pillar
+  const resp = d.filter(r=>(r.Pillar||'').toLowerCase().includes('resp'));
+  const prep = d.filter(r=>(r.Pillar||'').toLowerCase().includes('prep'));
+  const other = d.length - resp.length - prep.length;
+  const slices = [{label:'Response',val:resp.reduce((s,r)=>s+(r.Trainees||0),0),color:'#E74C3C'},
+                  {label:'Preparedness',val:prep.reduce((s,r)=>s+(r.Trainees||0),0),color:'#007A76'},
+                  {label:'Other',val:other,color:'#7A92AB'}].filter(s=>s.val>0);
+  const donutEl = document.getElementById('cb-donut');
+  if(donutEl) donutEl.innerHTML = makeDonut(slices);
+
+  // Bars by activity name
+  const barsEl = document.getElementById('cb-bars');
+  if(barsEl) barsEl.innerHTML = makeBars(d.map(r=>({name:r['Training/Activity_Name']||r.Training_Name||'Unknown',count:r.Trainees||0})),'name','count','#8E44AD',7);
+}
+
+function populateProc() {
+  const d = DATA.procurement || [];
+  const totalUSD = d.reduce((s,r)=>s+(r.USD_Amount||r.amount_usd||0),0);
+  const delivered = d.filter(r=>r.Date_of_Delivery||r.delivery_date).length;
+  const cats = new Set(d.map(r=>r.Supply_Category||r.supply_category).filter(Boolean));
+  set('proc-k1', fmtN(d.length));
+  set('proc-k2', fmtUSD(totalUSD));
+  set('proc-k3', fmtN(delivered));
+  set('proc-k4', fmtN(cats.size));
+
+  const byCat = {};
+  d.forEach(r=>{const k=r.Supply_Category||r.supply_category||'Unknown';byCat[k]=(byCat[k]||0)+1;});
+  const catData = Object.entries(byCat).map(([k,v])=>({name:k,count:v}));
+  const barsEl = document.getElementById('proc-bars');
+  if(barsEl) barsEl.innerHTML = makeBars(catData,'name','count','#2980B9',7);
+
+  // Donut by crisis
+  const byCrisis = {};
+  d.forEach(r=>{const k=r.Crisis||r.crisis||'Unknown';byCrisis[k]=(byCrisis[k]||0)+1;});
+  const colors=['#E74C3C','#F39C12','#2980B9','#007A76'];
+  const slices = Object.entries(byCrisis).map(([k,v],i)=>({label:k,val:v,color:colors[i%colors.length]}));
+  const donutEl = document.getElementById('proc-donut');
+  if(donutEl) donutEl.innerHTML = slices.length ? makeDonut(slices) : '<div style="color:var(--tl);font-size:11px;">No data</div>';
+}
+
+function populateFunds() {
+  const awards = DATA.fund_awards || [];
+  const appeals = DATA.fund_appeals || [];
+  const donors = DATA.fund_donors || [];
+
+  const awardsTotal = awards.reduce((s,r)=>s+(r.Award_Amount_USD||r.Amount_USD||0),0);
+  const appealsTotal = appeals.reduce((s,r)=>s+(r.Amount_Received_USD||r.received_usd||0),0);
+  const donorsTotal = donors.reduce((s,r)=>s+(r.Contribution_USD||r.amount_usd||0),0);
+
+  set('fund-awards-total', fmtUSD(awardsTotal));
+  set('fund-awards-count', awards.length + ' awards');
+  set('fund-appeals-total', fmtUSD(appealsTotal));
+  set('fund-appeals-count', appeals.length + ' appeal records');
+  set('fund-donors-total', fmtUSD(donorsTotal));
+  set('fund-donors-count', donors.length + ' donors');
+
+  const awEl = document.getElementById('fund-awards-bars');
+  if(awEl) awEl.innerHTML = makeBars(awards.map(r=>({name:r.Fund_Instrument||r.instrument||'Award',val:r.Award_Amount_USD||r.Amount_USD||0})),'name','val','#27AE60',6);
+
+  const dnEl = document.getElementById('fund-donors-bars');
+  if(dnEl) dnEl.innerHTML = makeBars(donors.map(r=>({name:r.Donor_Name||r.donor||'Donor',val:r.Contribution_USD||r.amount_usd||0})),'name','val','#8E44AD',6);
+}
+
+function populateEvacuees() {
+  const evac = DATA.evacuees || [];
+  const medevac = DATA.medevac || [];
+  const avgDay = medevac.length ? Math.round(medevac.reduce((s,r)=>s+(r.Total_Evacuees_day||0),0)/medevac.length) : 0;
+  const ageGroups = new Set(evac.map(r=>r.Age_Group||r.age_group).filter(Boolean));
+
+  set('evac-k1', fmtN(evac.length));
+  set('evac-k2', fmtN(medevac.length));
+  set('evac-k3', fmtN(avgDay) + '/day');
+  set('evac-k4', fmtN(ageGroups.size));
+
+  // Gender donut
+  const byGender = {};
+  evac.forEach(r=>{const k=r.Gender||r.gender||'Unknown';byGender[k]=(byGender[k]||0)+1;});
+  const gSlices = Object.entries(byGender).map(([k,v],i)=>({label:k,val:v,color:['#2980B9','#E74C3C','#7A92AB'][i%3]}));
+  const gEl = document.getElementById('evac-gender');
+  if(gEl) gEl.innerHTML = gSlices.length ? makeDonut(gSlices) : '<div style="color:var(--tl);font-size:11px;">No data</div>';
+
+  // Age bars
+  const byAge = {};
+  evac.forEach(r=>{const k=r.Age_Group||r.age_group||'Unknown';byAge[k]=(byAge[k]||0)+1;});
+  const ageData = Object.entries(byAge).map(([k,v])=>({name:k,count:v}));
+  const aEl = document.getElementById('evac-age');
+  if(aEl) aEl.innerHTML = makeBars(ageData,'name','count','#F39C12',6);
+}
+
+function populateAssessment() {
+  const d = DATA.assessment || [];
+  const pol = DATA.health_policy || [];
+  const participants = d.reduce((s,r)=>s+(r.Participants||r.participants||0),0);
+  const types = new Set(d.map(r=>r.Activity_Type||r.activity_type).filter(Boolean));
+  const funds = new Set(d.map(r=>r.Funding_source||r.funding_source).filter(Boolean));
+
+  set('assess-k1', fmtN(d.length));
+  set('assess-k2', fmtN(participants)||'N/A');
+  set('assess-k3', fmtN(types.size));
+  set('assess-k4', fmtN(funds.size));
+
+  const byType = {};
+  d.forEach(r=>{const k=r.Activity_Type||r.activity_type||'Unknown';byType[k]=(byType[k]||0)+1;});
+  const typeData = Object.entries(byType).map(([k,v])=>({name:k,count:v}));
+  const bEl = document.getElementById('assess-bars');
+  if(bEl) bEl.innerHTML = makeBars(typeData,'name','count','#16A085',6);
+
+  // Health policy
+  const polEl = document.getElementById('policy-bars');
+  if(polEl) {
+    if(pol.length) {
+      const byPol = {};
+      pol.forEach(r=>{const k=r['Policy_/_Activity_Title']||r.Title||'Activity';byPol[k]=(byPol[k]||0)+1;});
+      const polData = Object.entries(byPol).map(([k,v])=>({name:k,count:v}));
+      polEl.innerHTML = makeBars(polData,'name','count','#007A76',6);
+    } else {
+      polEl.innerHTML = '<div style="color:var(--tl);font-size:11px;font-style:italic;">No data</div>';
+    }
+  }
+}
+
+function populatePrepCB() {
+  const d = (DATA.capacity_building || []).filter(r=>(r.Pillar||'').toLowerCase().includes('prep'));
+  const trainTotal = d.reduce((s,r)=>s+(r.Trainees||0),0);
+  const events = new Set(d.map(r=>r['Training/Activity_Name']||r.Training_Name).filter(Boolean));
+  const aware = d.filter(r=>r.Is_Awareness_Campaign||r.is_awareness_campaign).length;
+  const funds = new Set(d.map(r=>r.Funding_stream||r.funding_stream).filter(Boolean));
+
+  set('prep-cb-k1', fmtN(trainTotal));
+  set('prep-cb-k2', fmtN(events.size));
+  set('prep-cb-k3', fmtN(aware));
+  set('prep-cb-k4', fmtN(funds.size));
+
+  const bEl = document.getElementById('prep-cb-bars');
+  if(bEl) bEl.innerHTML = d.length ? makeBars(d.map(r=>({name:r['Training/Activity_Name']||r.Training_Name||'Unknown',count:r.Trainees||0})),'name','count','#007A76',6) : '<div style="color:var(--tl);font-size:11px;">All CB data is Response pillar</div>';
+
+  // donut
+  const byFund = {};
+  d.forEach(r=>{const k=r.Funding_stream||r.funding_stream||'Unknown';byFund[k]=(byFund[k]||0)+(r.Trainees||0);});
+  const colors=['#007A76','#16A085','#27AE60','#2980B9'];
+  const slices = Object.entries(byFund).map(([k,v],i)=>({label:k,val:v,color:colors[i%colors.length]}));
+  const donutEl = document.getElementById('prep-cb-donut');
+  if(donutEl) donutEl.innerHTML = slices.length ? makeDonut(slices) : '<div style="color:var(--tl);font-size:11px;font-style:italic;">No pillar data split available</div>';
+}
+
+function populatePrepProc() {
+  const d = (DATA.procurement || []).filter(r=>(r.Pillar||r.pillar||'').toLowerCase().includes('prep'));
+  const totalUSD = d.reduce((s,r)=>s+(r.USD_Amount||r.amount_usd||0),0);
+  const delivered = d.filter(r=>r.Date_of_Delivery||r.delivery_date).length;
+  const cats = new Set(d.map(r=>r.Supply_Category||r.supply_category).filter(Boolean));
+
+  set('prep-proc-k1', fmtN(d.length) || fmtN((DATA.procurement||[]).length));
+  set('prep-proc-k2', fmtUSD(totalUSD)||fmtUSD((DATA.procurement||[]).reduce((s,r)=>s+(r.USD_Amount||0),0)));
+  set('prep-proc-k3', fmtN(delivered));
+  set('prep-proc-k4', fmtN(cats.size));
+
+  const src = d.length ? d : (DATA.procurement || []);
+  const bEl = document.getElementById('prep-proc-bars');
+  if(bEl) bEl.innerHTML = makeBars(src.map(r=>({name:r.Supply_Category||r.supply_category||'Unknown',count:r.USD_Amount||r.amount_usd||1})),'name','count','#007A76',7);
+}
+
+function populatePrepFund() {
+  const awards = DATA.fund_awards || [];
+  const prep = awards.filter(r=>(r.Pillar||'').toLowerCase().includes('prep'));
+  const src = prep.length ? prep : awards;
+  const total = src.reduce((s,r)=>s+(r.Award_Amount_USD||r.Amount_USD||0),0);
+  const instruments = new Set(src.map(r=>r.Fund_Instrument||r.instrument).filter(Boolean));
+
+  set('prep-fund-k1', fmtUSD(total));
+  set('prep-fund-k2', fmtN(src.length));
+  set('prep-fund-k3', fmtN(instruments.size));
+
+  const bEl = document.getElementById('prep-fund-bars');
+  if(bEl) bEl.innerHTML = makeBars(src.map(r=>({name:r.Fund_Instrument||r.instrument||'Award',val:r.Award_Amount_USD||r.Amount_USD||0})),'name','val','#27AE60',6);
+}
+
+// ── NAVIGATION ──
+let lastPillar = 'resp';
+
+function setPillarContext(pk) { lastPillar = pk; }
+
+function goPage(id) {
+  document.querySelectorAll('.canvas, .home').forEach(c => { c.classList.remove('active'); c.style.display='none'; });
+  const el = document.getElementById('page-' + id);
+  if (el) { el.classList.add('active'); el.style.display='flex'; const area=document.getElementById('canvas-area'); if(area)area.scrollTop=0; }
+  document.querySelectorAll('.side-item').forEach(i=>i.classList.remove('active'));
+  const nav = document.getElementById('nav-' + id);
+  if(nav) nav.classList.add('active');
+  document.getElementById('status-page').textContent = id.replace(/_/g,' ');
+  updateTopNav(id);
+}
+
+const PILLARS = {
+  resp: { label:"Refugees & Migrants Response", color:"#E74C3C", items:[
+    {id:"resp_hecp",label:"Health Expenses"},{id:"resp_cb",label:"Capacity Building"},
+    {id:"resp_proc",label:"Procurement"},{id:"resp_fund",label:"Fund Tracker"},
+    {id:"evacuees",label:"Evacuees"},{id:"pubs",label:"Publications"}
+  ]},
+  prep: { label:"Egypt Health Security — Preparedness", color:"#007A76", items:[
+    {id:"prep_assess",label:"Assessment"},{id:"prep_cb",label:"Capacity Building"},
+    {id:"prep_proc",label:"Procurement"},{id:"prep_fund",label:"Fund Tracker"},
+    {id:"pubs",label:"Publications"}
+  ]}
+};
+
+function pillarOf(id) {
+  if(id&&id.indexOf("prep_")===0) return "prep";
+  if(id&&id.indexOf("resp_")===0) return "resp";
+  if(id==="evacuees") return "resp";
+  return null;
+}
+
+function updateTopNav(activeId) {
+  const pk = pillarOf(activeId) || lastPillar;
+  const p = PILLARS[pk];
+  if(!p) return;
+  document.querySelectorAll('.topnav[data-topnav]').forEach(nav => {
+    let h = `<div class="topnav-home" onclick="goPage('home')">⌂ Landing</div><div class="topnav-sep"></div>`;
+    h += `<div class="tn-grp-lbl" style="color:${p.color};opacity:.85;">${p.label}</div>`;
+    p.items.forEach(it => {
+      const act = it.id===activeId?' active':'';
+      h += `<div class="topnav-item${act}" onclick="goPage('${it.id}')"><span class="dot" style="background:${p.color}"></span>${it.label}</div>`;
+    });
+    nav.innerHTML = h;
+  });
+}
+
+// Insert topnavs
+document.querySelectorAll('.canvas').forEach(c => {
+  const nav = document.createElement('div');
+  nav.className = 'topnav'; nav.setAttribute('data-topnav','1');
+  c.insertBefore(nav, c.firstChild);
+});
+updateTopNav(null);
+
+// Initial state
+document.getElementById('page-home').style.display='flex';
+document.querySelectorAll('.canvas').forEach(c=>c.style.display='none');
+
+// Crisis filter (visual only for now)
+function filterCrisis(page, val, el) {
+  el.closest('.fb-chip-group').querySelectorAll('.fb-chip').forEach(c=>c.classList.remove('active'));
+  el.classList.add('active');
+}
+
+// Load data
+loadAllData();
+</script>
+</body>
+</html>
